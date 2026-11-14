@@ -41,6 +41,9 @@ button{cursor:pointer;border:0;background:none}
 .dh{color:var(--mute);font-size:13.5px;padding:12px 4px 4px}
 .tx{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;border-radius:12px;background:var(--card);text-align:start;min-height:56px}
 .tx .mid{flex:1;min-width:0}
+.l1{display:flex;align-items:center;gap:8px;min-width:0}
+.l1 b{flex:0 1 auto;min-width:0}
+.who{font-size:12.5px;padding:2px 10px;border-radius:999px;white-space:nowrap;font-weight:600;flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis}
 .tx b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tx small{color:var(--mute);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tx .amt{font-weight:700;white-space:nowrap}
@@ -77,6 +80,7 @@ dialog ol{padding-inline-start:20px;line-height:1.9;font-size:14px}
 <div id="toast" role="status">تم الحفظ</div>
 <dialog id="xd"></dialog>
 <dialog id="st"></dialog>
+<dialog id="md"></dialog>
 <dialog id="sd"><h3>المزامنة بين الأجهزة</h3><p id="sdst" style="margin:0 0 6px;color:var(--mute)"></p>
 <label>معرّف المشروع (Project ID)<input class="inp" id="sp" dir="ltr" autocomplete="off"></label>
 <label>مفتاح الواجهة (Web API Key)<input class="inp" id="sk" dir="ltr" autocomplete="off"></label>
@@ -121,7 +125,7 @@ S.mo=S.mo??mk(Date.now());S.cur=S.cur||'ج.م';S.all=!!S.all;
 if(S.uf&&S.uf!=='all'&&!S.users.some(u=>u.id===S.uf))S.uf='all';S.uf=S.uf||'all'};
 let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}S=S||seed();mig();S.q='';
 
-let tm,pt;
+let tm,pt,asked=false;
 function keep(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function save(){S.u=Date.now();clearTimeout(pt);pt=setTimeout(push,1200);keep();const t=$('#toast');t.textContent='تم الحفظ';t.classList.add('on');clearTimeout(tm);tm=setTimeout(()=>t.classList.remove('on'),900)}
 
@@ -140,15 +144,16 @@ const rows=base().filter(x=>S.uf==='all'||x.u===S.uf).filter(x=>!q||((x.cat||'')
 let h='',last='';
 rows.forEach(x=>{const k=ymd(x.d);if(k!==last){last=k;h+=`<div class="dh">${new Date(x.d).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}</div>`}
 const u=uget(x.u);
-h+=`<button class="tx" data-a="editTx" data-id="${x.id}"><i class="dot" style="background:${u.c}"></i><span class="mid"><b>${esc((x.cat||'').trim()||'بدون بند')}</b><small>${esc(u.name)}${x.note?' · '+esc(x.note):''}</small></span><span class="amt ${x.type==='in'?'pos':'neg'}">${x.type==='in'?'+':'−'} ${money(x.amt)}</span></button>`});
+h+=`<button class="tx" data-a="editTx" data-id="${x.id}"><i class="dot" style="background:${u.c}"></i><span class="mid"><span class="l1"><b>${esc((x.cat||'').trim()||'بدون بند')}</b><span class="who" style="background:${u.c}30">${esc(u.name)}</span></span>${x.note?`<small>${esc(x.note)}</small>`:''}</span><span class="amt ${x.type==='in'?'pos':'neg'}">${x.type==='in'?'+':'−'} ${money(x.amt)}</span></button>`});
 $('#lst').innerHTML=h||'<p class="empty">لا توجد حركات في هذه الفترة.<br>اضغط «حركة جديدة» لإضافة أول حركة.</p>'}
 function render(){
-$('#app').innerHTML=`<div class="top"><h1>💰 دفتر المالية${sync?' <small style="font-size:14px">☁️</small>':''}</h1><button class="ic" data-a="openSt" aria-label="الإعدادات">⚙️</button></div>
+$('#app').innerHTML=`<div class="top"><h1>💰 دفتر المالية${sync?' <small style="font-size:14px">☁️</small>':''}</h1><div class="row"><button class="tab on" data-a="askMe" aria-label="صاحب الجهاز">👤 ${esc(uget(S.me).name)}</button><button class="ic" data-a="openSt" aria-label="الإعدادات">⚙️</button></div></div>
 <div class="mo"><button class="nav" data-a="mogo" data-id="-1"${S.all?' disabled':''} aria-label="الشهر السابق">›</button><h2>${S.all?'كل الفترات':new Date(Math.floor(S.mo/12),S.mo%12,1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'})}</h2><button class="nav" data-a="mogo" data-id="1"${S.all?' disabled':''} aria-label="الشهر التالي">‹</button></div>
 <div class="flt"><button class="tab${S.all?'':' on'}" data-a="allp" data-id="0">الشهر</button><button class="tab${S.all?' on':''}" data-a="allp" data-id="1">كل الفترات</button>${S.uf!=='all'?`<button class="tab on" data-a="clrUf">${esc(uget(S.uf).name)} ✕</button>`:''}</div>
 <div id="sm"></div>
 <input class="inp" id="q" placeholder="بحث في البند أو الملاحظة" value="${esc(S.q)}" aria-label="بحث" style="margin-bottom:4px">
-<div id="lst"></div>`;renderSum();renderList()}
+<div id="lst"></div>`;renderSum();renderList();
+if(!S.meSet&&S.users.length>1&&!asked&&!$('#xd').open&&!$('#st').open&&!$('#md').open){asked=true;askMe()}}
 
 /* ---------- نافذة الحركة ---------- */
 function openTx(id){const x=id?S.tx.find(t=>t.id===id):null,type=x?x.type:(S.lt||'out'),u=x?x.u:S.me;
@@ -164,6 +169,9 @@ $('#xd').innerHTML=`<form id="xf" class="f" data-id="${id||''}"><h3>${x?'تعد�
 <div class="row" style="margin-top:6px"><button class="btn" style="flex:1">حفظ</button>${x?`<button type="button" class="btn d" data-a="delTx" data-id="${id}">حذف</button>`:''}<button type="button" class="btn g" data-a="closeX">إلغاء</button></div></form>`;
 if(!$('#xd').open)$('#xd').showModal()}
 
+/* ---------- صاحب الجهاز ---------- */
+function askMe(){$('#md').innerHTML=`<h3>مين صاحب الجهاز ده؟</h3><p class="lab" style="margin-top:0">كل حركة هتتسجل باسمك تلقائياً، وهيظهر اسمك جنبها.</p><div class="chips">${S.users.map(u=>`<button class="chip${S.meSet&&u.id===S.me?' on':''}" data-a="setMe" data-id="${u.id}"><i class="dot" style="background:${u.c};margin-inline-end:6px"></i>${esc(u.name)}</button>`).join('')}</div>`;if(!$('#md').open)$('#md').showModal()}
+
 /* ---------- الإعدادات والمستخدمون ---------- */
 function openSt(){
 $('#st').innerHTML=`<h3>الإعدادات</h3><div class="lab" style="margin-top:0">العملة</div><select class="inp" id="cur">${['ج.م','$','€','ر.س','د.إ'].map(c=>`<option${c===S.cur?' selected':''}>${c}</option>`).join('')}</select>
@@ -174,6 +182,7 @@ if(!$('#st').open)$('#st').showModal()}
 
 /* ---------- الأفعال ---------- */
 const A={
+askMe(){askMe()},setMe(id){S.me=id;S.meSet=true;keep();$('#md').close();render()},
 mogo(id){S.mo+=(+id);keep();render()},
 allp(id){S.all=id==='1';keep();render()},
 pickUser(id){S.uf=S.uf===id?'all':id;keep();render()},
@@ -204,7 +213,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e
 if(e.target.id==='xf'){const amt=+f.get('amt');if(!(amt>0))return alert('اكتب مبلغاً أكبر من صفر');const d=fromYmd(f.get('d')||ymd(Date.now())),id=e.target.dataset.id;
 const rec={type:f.get('type'),u:f.get('u'),cat:f.get('cat').trim(),amt,note:f.get('note').trim(),d,m:Date.now()};
 if(id)Object.assign(S.tx.find(x=>x.id===id),rec);else S.tx.push({id:uid(),...rec});
-S.lt=rec.type;S.me=rec.u;if(!S.all)S.mo=mk(d);save();$('#xd').close();render();return}
+S.lt=rec.type;if(!S.all)S.mo=mk(d);save();$('#xd').close();render();return}
 if(e.target.id==='nuf'){const n=f.get('n').trim();if(!n)return;if(S.users.some(u=>u.name===n))return alert('هذا الاسم موجود بالفعل');S.users.push(newUser(n));save();render();openSt()}});
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;renderList()}});
 document.addEventListener('change',e=>{const t=e.target;
@@ -214,7 +223,9 @@ if(t.id==='imp'){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r
 /* ---------- دمج البيانات (حتى لا يمسح جهازٌ حركات جهاز آخر) ---------- */
 function merge(d){S.del=Object.assign({},d.del||{},S.del||{});
 const un=(a,b)=>{const m=new Map();[...(a||[]),...(b||[])].forEach(x=>{const o=m.get(x.id);if(!o||(x.m||0)>(o.m||0))m.set(x.id,x)});return[...m.values()].filter(x=>!S.del[x.id])};
-S.tx=un(S.tx,d.tx);S.users=un(S.users,d.users);if(d.cur)S.cur=d.cur;mig()}
+S.tx=un(S.tx,d.tx);S.users=un(S.users,d.users);
+if(S.users.length>1)S.users=S.users.filter(u=>u.m||S.tx.some(x=>x.u===u.id));
+if(d.cur)S.cur=d.cur;mig()}
 
 /* ---------- مزامنة سحابية (Firestore) ---------- */
 let sync=null,busy=false,again=false;const CH=60000;
@@ -233,6 +244,7 @@ try{await pull(false);S.u=Date.now();const{notes,tasks,folders,...P}=S,j=JSON.st
 await sync.doc('meta').set({u:S.u,n});S.cu=S.u;keep();cloudMsg('☁️ تمت المزامنة')}catch(e){cloudMsg('⚠️ تعذّرت المزامنة، البيانات محفوظة على هذا الجهاز')}
 busy=false;if(again){again=false;push()}}
 document.addEventListener('visibilitychange',()=>{if(sync&&!document.hidden)pull(false).then(m=>m&&push()).catch(()=>{})});
+setInterval(()=>{if(sync&&!document.hidden&&!busy)pull(false).then(m=>m&&push()).catch(()=>{})},30000);
 render();syncInit();
 </script>
 </body>
