@@ -81,26 +81,7 @@ dialog ol{padding-inline-start:20px;line-height:1.9;font-size:14px}
 <dialog id="xd"></dialog>
 <dialog id="st"></dialog>
 <dialog id="md"></dialog>
-<dialog id="sd"><h3>المزامنة بين الأجهزة</h3><p id="sdst" style="margin:0 0 6px;color:var(--mute)"></p>
-<label>معرّف المشروع (Project ID)<input class="inp" id="sp" dir="ltr" autocomplete="off"></label>
-<label>مفتاح الواجهة (Web API Key)<input class="inp" id="sk" dir="ltr" autocomplete="off"></label>
-<label>كود المزامنة (سرّي، احتفظ به)<span class="row"><input class="inp" id="sc" dir="ltr" autocomplete="off"><button class="btn g" data-a="genCode">توليد</button></span></label>
-<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" data-a="saveSync">حفظ وتفعيل</button><button class="btn g" data-a="copyLink">نسخ كود الربط</button><button class="btn g" data-a="offSync">إيقاف</button><button class="btn g" data-a="closeSd">إغلاق</button></div>
-<label>على الجهاز الثاني: الصق كود الربط هنا<span class="row"><input class="inp" id="sl" dir="ltr" autocomplete="off"><button class="btn g" data-a="applyLink">تطبيق</button></span></label>
-<details style="margin-top:12px"><summary>طريقة الإعداد (مرة واحدة)</summary><ol>
-<li>ادخل console.firebase.google.com بحساب Google وأنشئ مشروعاً جديداً (يمكنك إيقاف Analytics).</li>
-<li>من القائمة: Build ثم Firestore Database ثم Create database (أي منطقة).</li>
-<li>افتح تبويب Rules والصق القواعد التالية ثم Publish:</li></ol>
-<pre>rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /notebooks/{id} {
-      allow get: if true;
-      allow create, update: if request.resource.data.keys().hasOnly(['t','u','n']);
-    }
-  }
-}</pre><ol start="4"><li>من Project settings ثم General ثم Your apps: أضف تطبيق ويب (&lt;/&gt;) وانسخ apiKey وprojectId.</li>
-<li>الصقهما هنا، واضغط «توليد» لكود المزامنة، ثم «حفظ وتفعيل». انسخ «كود الربط» والصقه على الجهاز الثاني.</li></ol></details></dialog>
+<dialog id="sd"></dialog>
 <input type="file" id="imp" accept=".json" hidden>
 <script>
 const KEY='daftar-v1',COL=['#f0b400','#2e9e5b','#4285f4','#d9453b','#a142f4','#00acc1','#ff7043','#8d6e63'];
@@ -148,6 +129,7 @@ h+=`<button class="tx" data-a="editTx" data-id="${x.id}"><i class="dot" style="b
 $('#lst').innerHTML=h||'<p class="empty">لا توجد حركات في هذه الفترة.<br>اضغط «حركة جديدة» لإضافة أول حركة.</p>'}
 function render(){
 $('#app').innerHTML=`<div class="top"><h1>💰 دفتر المالية${sync?' <small style="font-size:14px">☁️</small>':''}</h1><div class="row"><button class="tab on" data-a="askMe" aria-label="صاحب الجهاز">👤 ${esc(uget(S.me).name)}</button><button class="ic" data-a="openSt" aria-label="الإعدادات">⚙️</button></div></div>
+${getCfg()?'':'<button class="tab" data-a="syncCfg" style="width:100%;margin-bottom:10px;padding:10px">☁️ هتستخدمه على جهازين؟ فعّل المزامنة</button>'}
 <div class="mo"><button class="nav" data-a="mogo" data-id="-1"${S.all?' disabled':''} aria-label="الشهر السابق">›</button><h2>${S.all?'كل الفترات':new Date(Math.floor(S.mo/12),S.mo%12,1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'})}</h2><button class="nav" data-a="mogo" data-id="1"${S.all?' disabled':''} aria-label="الشهر التالي">‹</button></div>
 <div class="flt"><button class="tab${S.all?'':' on'}" data-a="allp" data-id="0">الشهر</button><button class="tab${S.all?' on':''}" data-a="allp" data-id="1">كل الفترات</button>${S.uf!=='all'?`<button class="tab on" data-a="clrUf">${esc(uget(S.uf).name)} ✕</button>`:''}</div>
 <div id="sm"></div>
@@ -198,13 +180,19 @@ delUser(id){const u=S.users.find(x=>x.id===id);if(S.users.length<2)return alert(
 if(S.tx.some(x=>x.u===id))return alert(`لا يمكن حذف «${u.name}» لأن عليه حركات مسجّلة. احذف حركاته أو غيّر مستخدمها أولاً.`);
 if(!confirm(`حذف المستخدم «${u.name}»؟`))return;S.users=S.users.filter(x=>x.id!==id);S.del[id]=Date.now();
 if(S.me===id)S.me=S.users[0].id;if(S.uf===id)S.uf='all';save();render();openSt()},
-syncCfg(){const c=getCfg()||{};$('#sp').value=c.p||'';$('#sk').value=c.k||'';$('#sc').value=c.c||'';$('#sl').value='';$('#sdst').textContent=sync?'الحالة: ☁️ متزامن':'الحالة: غير مفعّلة (الحفظ على هذا الجهاز فقط)';$('#sd').showModal()},
+syncCfg(){openSd()},
+openFb(){window.open('https://console.firebase.google.com','_blank')},
+async copyRules(){try{await navigator.clipboard.writeText(RULES);cloudMsg('تم نسخ القواعد')}catch(e){prompt('انسخ القواعد:',RULES)}},
+async shareLink(){const c=getCfg();if(!c)return;const u=linkOf(c);try{if(navigator.share){await navigator.share({title:'دفتر المالية',text:'افتح الرابط ده في Chrome عشان تربط الجهاز:',url:u});return}}catch(e){if(e.name==='AbortError')return}try{await navigator.clipboard.writeText(u);cloudMsg('تم نسخ الرابط، ابعته للجهاز التاني')}catch(e){prompt('انسخ الرابط:',u)}},
+async saveSync(){const c={p:$('#sp').value.trim(),k:$('#sk').value.trim(),c:($('#sc')?$('#sc').value:'').trim()};
+if(!c.p||!c.k)return sdErr('اكتب معرّف المشروع (Project ID) والمفتاح (API Key)');
+if(c.c.length<24)c.c=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join('');
+sdErr('⏳ بيختبر الاتصال...',1);const err=await testCfg(c);if(err)return sdErr(err);
+localStorage.setItem('daftar-sync',JSON.stringify(c));sync=null;await syncInit();render();openSd()},
+applyLink(){let t=$('#sl').value.trim();const i=t.indexOf('join=');if(i>=0)t=t.slice(i+5);
+try{const c=unb64(t);if(!(c.p&&c.k&&c.c))throw 0;localStorage.setItem('daftar-sync',JSON.stringify(c));sync=null;sdErr('⏳ بيتصل...',1);syncInit().then(()=>{render();openSd()})}catch(e){sdErr('الرابط أو الكود غير صالح')}},
 closeSd(){$('#sd').close()},
-genCode(){$('#sc').value=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join('')},
-saveSync(){const c={p:$('#sp').value.trim(),k:$('#sk').value.trim(),c:$('#sc').value.trim()};if(!c.p||!c.k||c.c.length<24)return alert('أكمل المعرّف والمفتاح، وولّد كود مزامنة (٢٤ حرفاً على الأقل)');localStorage.setItem('daftar-sync',JSON.stringify(c));$('#sd').close();sync=null;syncInit()},
 offSync(){localStorage.removeItem('daftar-sync');sync=null;render();$('#sd').close()},
-copyLink(){const c={p:$('#sp').value.trim(),k:$('#sk').value.trim(),c:$('#sc').value.trim()};if(!c.p||!c.k||!c.c)return alert('أكمل الحقول أولاً');const t=btoa(JSON.stringify(c));$('#sl').value=t;$('#sl').select();try{navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}},
-applyLink(){try{const c=JSON.parse(atob($('#sl').value.trim()));$('#sp').value=c.p;$('#sk').value=c.k;$('#sc').value=c.c;A.saveSync()}catch(e){alert('كود الربط غير صالح')}},
 export(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='daftar-backup.json';a.click()},
 import(){$('#imp').click()}};
 
@@ -244,8 +232,46 @@ try{await pull(false);S.u=Date.now();const{notes,tasks,folders,...P}=S,j=JSON.st
 await sync.doc('meta').set({u:S.u,n});S.cu=S.u;keep();cloudMsg('☁️ تمت المزامنة')}catch(e){cloudMsg('⚠️ تعذّرت المزامنة، البيانات محفوظة على هذا الجهاز')}
 busy=false;if(again){again=false;push()}}
 document.addEventListener('visibilitychange',()=>{if(sync&&!document.hidden)pull(false).then(m=>m&&push()).catch(()=>{})});
+/* ---------- ربط الأجهزة بسهولة ---------- */
+const RULES=`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /notebooks/{id} {
+      allow get: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['t','u','n']);
+    }
+  }
+}`;
+const b64=o=>btoa(JSON.stringify(o)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb64=t=>JSON.parse(atob(t.replace(/-/g,'+').replace(/_/g,'/')));
+const linkOf=c=>location.origin+location.pathname+'#join='+b64(c);
+function joinFromHash(){const m=location.hash.match(/^#join=(.+)$/);if(!m)return false;let ok=false;
+try{const c=unb64(m[1]);if(c.p&&c.k&&c.c){localStorage.setItem('daftar-sync',JSON.stringify(c));ok=true}}catch(e){}
+history.replaceState(null,'',location.pathname+location.search);return ok}
+async function testCfg(c){const a=fsAdapter(c);try{await a.doc('meta').get();await a.doc('ping').set({t:'ok'});return null}catch(e){const m=String(e.message);
+if(m==='403')return'القواعد (Rules) لسه ما اتنشرتش أو فيها غلط. افتح تبويب Rules في Firestore، الصق القواعد واضغط Publish.';
+if(m==='400'||m==='401')return'معرّف المشروع أو المفتاح غلط، راجعهم.';
+if(m==='404')return'قاعدة بيانات Firestore لسه ما اتعملتش. من Firebase: Build ← Firestore Database ← Create database.';
+return'مفيش اتصال بالإنترنت أو الإعدادات غلط. حاول تاني.'}}
+function sdErr(t,mute){const e=$('#sderr');if(e){e.textContent=t;e.style.color=mute?'var(--mute)':'var(--bad)'}}
+function openSd(){const c=getCfg();
+const head='<h3>ربط الجهازين ☁️</h3>';
+const err='<p id="sderr" style="min-height:1.2em;margin:8px 0 0;font-size:14px"></p>';
+const close='<button class="btn g" data-a="closeSd">إغلاق</button>';
+const adv=`<details style="margin-top:12px"><summary>إعدادات متقدمة</summary><label>معرّف المشروع (Project ID)<input class="inp" id="sp" dir="ltr" autocomplete="off" value="${esc((c||{}).p||'')}"></label><label>مفتاح الواجهة (API Key)<input class="inp" id="sk" dir="ltr" autocomplete="off" value="${esc((c||{}).k||'')}"></label><label>كود المزامنة<input class="inp" id="sc" dir="ltr" autocomplete="off" value="${esc((c||{}).c||'')}"></label><div class="row" style="margin-top:10px"><button class="btn g" data-a="saveSync">حفظ</button></div></details>`;
+if(c){$('#sd').innerHTML=`${head}<p style="margin:0 0 8px">الحالة: <b>${sync?'☁️ شغّالة':'⚠️ مش متصل حالياً'}</b></p>
+<p style="font-size:14px;color:var(--mute);line-height:1.8;margin:0 0 12px">عشان تربط جهاز تاني: ابعتله الرابط، وخليه يفتحه في <b>Chrome</b> (لو فتحه جوه واتساب يختار «فتح في المتصفح»). الجهاز هيتربط لوحده ويسأله مين صاحبه.</p>
+<div class="f"><button class="btn" data-a="shareLink">📲 ابعت رابط الربط</button><button class="btn g" data-a="offSync">إيقاف المزامنة على الجهاز ده</button>${close}</div>${err}${adv}`}
+else{$('#sd').innerHTML=`${head}<p style="margin:0 0 6px;font-size:14px;line-height:1.8"><b>الجهاز الأول:</b> إعداد مرة واحدة بس (حوالي ٥ دقايق). بعدها الجهاز التاني بيتربط بلمسة من رابط.</p>
+<ol style="font-size:14px"><li>دوس «افتح Firebase» وأنشئ مشروع جديد (Create project)، وقفّل Analytics.</li><li>جوّه المشروع: <b>Build ← Firestore Database ← Create database</b>.</li><li>تبويب <b>Rules</b>: دوس «نسخ القواعد»، والصقها مكان الموجود، واضغط <b>Publish</b>.</li><li><b>Project settings ← General ← Your apps</b>، أضف تطبيق ويب (&lt;/&gt;) وانسخ <b>apiKey</b> و<b>projectId</b> هنا:</li></ol>
+<div class="row" style="margin-bottom:8px"><button class="btn g" data-a="openFb" style="flex:1">🔗 افتح Firebase</button><button class="btn g" data-a="copyRules" style="flex:1">📋 نسخ القواعد</button></div>
+<div class="f"><input class="inp" id="sp" dir="ltr" autocomplete="off" placeholder="projectId" aria-label="Project ID"><input class="inp" id="sk" dir="ltr" autocomplete="off" placeholder="apiKey" aria-label="API Key"><button class="btn" data-a="saveSync">تفعيل المزامنة</button></div>${err}
+<details style="margin-top:12px"><summary>معاك رابط أو كود ربط من الجهاز الأول؟</summary><div class="row" style="margin-top:8px"><input class="inp" id="sl" dir="ltr" autocomplete="off" placeholder="الصق الرابط هنا"><button class="btn g" data-a="applyLink">تطبيق</button></div></details><div style="margin-top:12px">${close}</div>`}
+if(!$('#sd').open)$('#sd').showModal()}
+window.addEventListener('hashchange',()=>{if(joinFromHash()){sync=null;syncInit().then(render)}});
+const joined=joinFromHash();
 setInterval(()=>{if(sync&&!document.hidden&&!busy)pull(false).then(m=>m&&push()).catch(()=>{})},30000);
-render();syncInit();
+render();if(joined)cloudMsg('✅ تم ربط الجهاز، جاري تحميل البيانات...');syncInit();
 </script>
 </body>
 </html>
