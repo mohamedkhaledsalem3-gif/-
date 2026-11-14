@@ -142,14 +142,13 @@ function openTx(id){const x=id?S.tx.find(t=>t.id===id):null,type=x?x.type:(S.lt|
 const cats=[...new Set([...S.tx.slice().sort((a,b)=>b.d-a.d).map(t=>(t.cat||'').trim()).filter(Boolean),...DEFCATS])].slice(0,8);
 $('#xd').innerHTML=`<form id="xf" class="f" data-id="${id||''}"><h3>${x?'تعديل حركة':'حركة جديدة'}</h3>
 <div class="seg2"><button type="button" class="${type==='out'?'on out':''}" data-a="setType" data-id="out">🔴 صرف</button><button type="button" class="${type==='in'?'on in':''}" data-a="setType" data-id="in">🟢 دخل</button></div><input type="hidden" name="type" value="${type}">
-<div class="lab" style="margin:4px 0 0">مين؟</div><div class="chips">${S.users.map(s=>`<button type="button" class="chip${s.id===u?' on':''}" data-a="setU" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div><input type="hidden" name="u" value="${u}">
 <input class="inp amt-in" name="amt" type="number" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required value="${x?x.amt:''}" aria-label="المبلغ">
-<input class="inp" name="cat" list="cats" placeholder="في إيه؟ (البند)" required autocomplete="off" value="${x?esc(x.cat||''):''}" aria-label="البند"><datalist id="cats">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+<input class="inp" name="cat" list="cats" placeholder="في إيه؟" required autocomplete="off" value="${x?esc(x.cat||''):''}" aria-label="البند"><datalist id="cats">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
 <div class="chips">${cats.slice(0,6).map(c=>`<button type="button" class="chip" data-a="setCat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-<input class="inp" name="note" placeholder="ملاحظة (اختياري)" autocomplete="off" value="${x?esc(x.note||''):''}" aria-label="ملاحظة">
-<input class="inp" name="d" type="date" value="${ymd(x?x.d:dm())}" aria-label="التاريخ">
+${S.users.length>1?`<div class="lab" style="margin:2px 0 0">مين؟</div><div class="chips">${S.users.map(s=>`<button type="button" class="chip${s.id===u?' on':''}" data-a="setU" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>`:''}<input type="hidden" name="u" value="${u}">
+<details${x&&(x.note||ymd(x.d)!==ymd(Date.now()))?' open':''}><summary style="color:var(--mute);padding:6px 0">＋ ملاحظة أو تاريخ تاني</summary><div class="f"><input class="inp" name="note" placeholder="ملاحظة (اختياري)" autocomplete="off" value="${x?esc(x.note||''):''}" aria-label="ملاحظة"><input class="inp" name="d" type="date" value="${ymd(x?x.d:dm())}" aria-label="التاريخ"></div></details>
 <div class="row" style="margin-top:6px"><button class="btn" style="flex:1">حفظ</button>${x?`<button type="button" class="btn d" data-a="delTx" data-id="${id}">حذف</button>`:''}<button type="button" class="btn g" data-a="closeX">إلغاء</button></div></form>`;
-if(!$('#xd').open)$('#xd').showModal()}
+if(!$('#xd').open)$('#xd').showModal();if(!x)setTimeout(()=>{const a=$('#xf');a&&a.elements.amt.focus()},60)}
 
 /* ---------- صاحب الجهاز ---------- */
 function askMe(){$('#md').innerHTML=`<h3>مين صاحب الجهاز ده؟</h3><p class="lab" style="margin-top:0">كل حركة هتتسجل باسمك تلقائياً، وهيظهر اسمك جنبها.</p><div class="chips">${S.users.map(u=>`<button class="chip${S.meSet&&u.id===S.me?' on':''}" data-a="setMe" data-id="${u.id}"><i class="dot" style="background:${u.c};margin-inline-end:6px"></i>${esc(u.name)}</button>`).join('')}</div>`;if(!$('#md').open)$('#md').showModal()}
