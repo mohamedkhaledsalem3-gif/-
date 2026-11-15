@@ -81,6 +81,8 @@ dialog ol{padding-inline-start:20px;line-height:1.9;font-size:14px}
 #snack[hidden]{display:none}
 #snack button{background:var(--acc);color:#241c00;font-weight:700;border-radius:999px;padding:7px 16px}
 dialog details>summary{padding:10px 0;font-weight:600;cursor:pointer}
+dialog label.chk{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;font-size:16px;color:var(--ink)}
+.chk input{width:22px;height:22px;accent-color:var(--acc)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -106,15 +108,14 @@ const ymd=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()
 const fromYmd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12).getTime()};
 const dm=()=>S.mo===mk(Date.now())?Date.now():new Date(Math.floor(S.mo/12),S.mo%12,15,12).getTime();
 const newUser=n=>({id:uid(),name:n,c:COL[S.users.length%COL.length],m:Date.now()});
-const SHARED={name:'الاتنين',c:'#86868b'};
-const uget=id=>id===''?SHARED:(S.users.find(u=>u.id===id)||{name:'—',c:'#999'});
+const uget=id=>S.users.find(u=>u.id===id)||{name:'—',c:'#999'};
 
 function seed(){const u=uid();return{users:[{id:u,name:'أنا',c:COL[0],m:0}],tx:[],del:{},rec:[],me:u}}
 const mig=()=>{S.tx=S.tx||[];S.del=S.del||{};S.rec=S.rec||[];
 if(!S.users||!S.users.length)S.users=[{id:uid(),name:'أنا',c:COL[0],m:0}];
 if(!S.users.some(u=>u.id===S.me))S.me=S.users[0].id;
-S.tx.forEach(x=>{if(x.type==='in')x.u='';else if(!S.users.some(u=>u.id===x.u))x.u=S.users[0].id;x.m=x.m||0});
-S.rec.forEach(r=>{if(r.type==='in')r.u='';else if(!S.users.some(u=>u.id===r.u))r.u=S.users[0].id;r.m=r.m||0});
+S.tx.forEach(x=>{if(!S.users.some(u=>u.id===x.u))x.u=S.users[0].id;x.m=x.m||0});
+S.rec.forEach(r=>{if(!S.users.some(u=>u.id===r.u))r.u=S.users[0].id;r.m=r.m||0});
 S.mo=S.mo??mk(Date.now());S.cur=S.cur||'ج.م';S.all=!!S.all;
 if(S.uf&&S.uf!=='all'&&!S.users.some(u=>u.id===S.uf))S.uf='all';S.uf=S.uf||'all'};
 let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}S=S||seed();mig();S.q='';
@@ -132,8 +133,8 @@ const sumOf=(a,t)=>a.filter(x=>x.type===t).reduce((s,x)=>s+(+x.amt||0),0);
 /* ---------- العرض ---------- */
 function renderSum(){const a=base(),inc=sumOf(a,'in'),out=sumOf(a,'out'),bal=inc-out;
 $('#sm').innerHTML=`<div class="tot"><small>الإجمالي (اللي في الصندوق)</small><span class="big ${bal<0?'neg':'pos'}">${money(bal)}</span><div class="io"><span class="pos">دخل ${money(inc)}</span><span class="neg">صرف ${money(out)}</span></div></div>
-<div class="users">${S.users.map(u=>{const o=sumOf(a.filter(x=>x.u===u.id),'out'),all=sumOf(a,'out');
-return`<button class="uc${S.uf===u.id?' on':''}" data-a="pickUser" data-id="${u.id}"><span class="nm"><i class="dot" style="background:${u.c}"></i>${esc(u.name)}</span><small>صرف</small><span class="bal neg">${money(o)}</span><small>${all?num(Math.round(o/all*100))+'٪ من المصروف':'—'}</small></button>`}).join('')}</div>`}
+<div class="users">${S.users.map(u=>{const m=a.filter(x=>x.u===u.id),i=sumOf(m,'in'),o=sumOf(m,'out'),b=i-o;
+return`<button class="uc${S.uf===u.id?' on':''}" data-a="pickUser" data-id="${u.id}"><span class="nm"><i class="dot" style="background:${u.c}"></i>${esc(u.name)}</span><small>اللي معاه</small><span class="bal ${b<0?'neg':'pos'}">${money(b)}</span><div class="io"><span class="pos">دخّل ${money(i)}</span><span class="neg">صرف ${money(o)}</span></div></button>`}).join('')}</div>`}
 function renderList(){const q=S.q.trim();
 const rows=base().filter(x=>S.uf==='all'||x.u===S.uf).filter(x=>!q||((x.cat||'')+(x.note||'')+uget(x.u).name).includes(q)).sort((a,b)=>b.d-a.d||(b.m||0)-(a.m||0));
 let h='',last='';
@@ -147,30 +148,33 @@ if(new Date(y,mo,dd).getTime()>t0.getTime())continue;const id='r_'+r.id+'_'+k;if
 S.tx.push({id,type:r.type,u:r.u,cat:r.cat,amt:r.amt,note:r.note||'',d:new Date(y,mo,dd,12).getTime(),m:Date.now()});add++}});return add>0}
 function render(){
 if(genRec())save(1);
-$('#app').innerHTML=`<div class="top"><h1>💰 دفتر المالية${sync?' <small style="font-size:14px">☁️</small>':''}${navigator.onLine?'':' <small style="font-size:13px;color:var(--mute)">📴 بدون نت</small>'}</h1><div class="row"><button class="tab on" data-a="askMe" aria-label="صاحب الجهاز">👤 ${esc(uget(S.me).name)}</button><button class="ic" data-a="openSt" aria-label="الإعدادات">⚙️</button></div></div>
+$('#app').innerHTML=`<div class="top"><h1>💰 دفتر المالية${sync?' <small style="font-size:14px">☁️</small>':''}${navigator.onLine?'':' <small style="font-size:13px;color:var(--mute)">📴 بدون نت</small>'}</h1><div class="row"><button class="tab on" data-a="askMe" aria-label="صاحب الجهاز">👤 ${S.meSet?esc(uget(S.me).name):'اختار اسمك'}</button><button class="ic" data-a="openSt" aria-label="الإعدادات">⚙️</button></div></div>
 ${getCfg()?'':'<button class="tab" data-a="syncCfg" style="width:100%;margin-bottom:10px;padding:10px">☁️ هتستخدمه على جهازين؟ فعّل المزامنة</button>'}
 <div class="mo"><button class="nav" data-a="mogo" data-id="-1"${S.all?' disabled':''} aria-label="الشهر السابق">›</button><h2>${S.all?'كل الفترات':new Date(Math.floor(S.mo/12),S.mo%12,1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'})}</h2><button class="nav" data-a="mogo" data-id="1"${S.all?' disabled':''} aria-label="الشهر التالي">‹</button></div>
 <div class="flt"><button class="tab${S.all?'':' on'}" data-a="allp" data-id="0">الشهر</button><button class="tab${S.all?' on':''}" data-a="allp" data-id="1">كل الفترات</button>${S.uf!=='all'?`<button class="tab on" data-a="clrUf">${esc(uget(S.uf).name)} ✕</button>`:''}</div>
 <div id="sm"></div>
 <input class="inp" id="q" placeholder="بحث في البند أو الملاحظة" value="${esc(S.q)}" aria-label="بحث" style="margin-bottom:4px">
 <div id="lst"></div>`;renderSum();renderList();
-if(!S.meSet&&S.users.length>1&&!asked&&!$('#xd').open&&!$('#st').open&&!$('#md').open){asked=true;askMe()}}
+if(!S.meSet&&(sync||S.users.length>1)&&!asked&&!$('#xd').open&&!$('#st').open&&!$('#md').open){asked=true;askMe()}}
 
 /* ---------- نافذة الحركة ---------- */
-function openTx(id){const x=id?S.tx.find(t=>t.id===id):null,type=x?x.type:(S.lt||'out'),u=type==='in'?'':(x?x.u:S.me);
+function openTx(id){const x=id?S.tx.find(t=>t.id===id):null,type=x?x.type:(S.lt||'out'),u=x?x.u:S.me;
 const cats=[...new Set([...S.tx.slice().sort((a,b)=>b.d-a.d).map(t=>(t.cat||'').trim()).filter(Boolean),...DEFCATS])].slice(0,8);
 $('#xd').innerHTML=`<form id="xf" class="f" data-id="${id||''}"><h3>${x?'تعديل حركة':'حركة جديدة'}</h3>
 <div class="seg2"><button type="button" class="${type==='out'?'on out':''}" data-a="setType" data-id="out">🔴 صرف</button><button type="button" class="${type==='in'?'on in':''}" data-a="setType" data-id="in">🟢 دخل</button></div><input type="hidden" name="type" value="${type}">
 <input class="inp amt-in" name="amt" type="number" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required value="${x?x.amt:''}" aria-label="المبلغ">
 <input class="inp" name="cat" list="cats" placeholder="في إيه؟" required autocomplete="off" value="${x?esc(x.cat||''):''}" aria-label="البند"><datalist id="cats">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
 <div class="chips">${cats.slice(0,6).map(c=>`<button type="button" class="chip" data-a="setCat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-<p id="shn" class="lab" style="margin:0"${type==='in'?'':' hidden'}>الدخل للاتنين، مش محتاج تحدد مين.</p><div id="ur"${type==='in'?' hidden':''}>${S.users.length>1?`<div class="lab" style="margin:2px 0 6px">مين صرف؟</div><div class="chips">${S.users.map(s=>`<button type="button" class="chip${s.id===u?' on':''}" data-a="setU" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>`:''}</div><input type="hidden" name="u" value="${u}">
+${S.users.length>1?`<div class="lab" style="margin:2px 0 0">مين؟</div><div class="chips">${S.users.map(s=>`<button type="button" class="chip${s.id===u?' on':''}" data-a="setU" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>`:''}<input type="hidden" name="u" value="${u}">
 <details${x&&(x.note||ymd(x.d)!==ymd(Date.now()))?' open':''}><summary style="color:var(--mute);padding:6px 0">＋ ملاحظة أو تاريخ تاني</summary><div class="f"><input class="inp" name="note" placeholder="ملاحظة (اختياري)" autocomplete="off" value="${x?esc(x.note||''):''}" aria-label="ملاحظة"><input class="inp" name="d" type="date" value="${ymd(x?x.d:dm())}" aria-label="التاريخ"></div></details>
+${x?'':'<label class="chk"><input type="checkbox" name="rep"> 🔁 كرر كل شهر في نفس اليوم</label>'}
 <div class="row" style="margin-top:6px"><button class="btn" style="flex:1">حفظ</button>${x?`<button type="button" class="btn d" data-a="delTx" data-id="${id}">حذف</button>`:''}<button type="button" class="btn g" data-a="closeX">إلغاء</button></div></form>`;
 if(!$('#xd').open)$('#xd').showModal();if(!x)setTimeout(()=>{const a=$('#xf');a&&a.elements.amt.focus()},60)}
 
 /* ---------- صاحب الجهاز ---------- */
-function askMe(){$('#md').innerHTML=`<h3>مين صاحب الجهاز ده؟</h3><p class="lab" style="margin-top:0">كل حركة هتتسجل باسمك تلقائياً، وهيظهر اسمك جنبها.</p><div class="chips">${S.users.map(u=>`<button class="chip${S.meSet&&u.id===S.me?' on':''}" data-a="setMe" data-id="${u.id}"><i class="dot" style="background:${u.c};margin-inline-end:6px"></i>${esc(u.name)}</button>`).join('')}</div>`;if(!$('#md').open)$('#md').showModal()}
+function askMe(){$('#md').innerHTML=`<h3>مين صاحب الجهاز ده؟</h3><p style="margin:0 0 4px;font-size:14px;line-height:1.8;color:var(--mute)">كل حركة هتتسجل باسمك تلقائياً وهيظهر اسمك جنبها. <b>كل شخص ليه اسم لوحده</b>، فلو إنت شخص جديد اكتب اسمك تحت.</p>
+${S.users.length?`<div class="lab">أنا واحد من دول:</div><div class="chips">${S.users.map(u=>`<button class="chip${S.meSet&&u.id===S.me?' on':''}" data-a="setMe" data-id="${u.id}"><i class="dot" style="background:${u.c};margin-inline-end:6px"></i>${esc(u.name)}</button>`).join('')}</div>`:''}
+<div class="lab">أو أنا شخص جديد:</div><form id="mef" class="row"><input class="inp" name="n" placeholder="اكتب اسمك" autocomplete="off" required><button class="btn">ابدأ</button></form>`;if(!$('#md').open)$('#md').showModal()}
 
 /* ---------- الإعدادات والمستخدمون ---------- */
 function catList(){const m={};S.tx.forEach(x=>{const k=(x.cat||'').trim();if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])}
@@ -187,13 +191,13 @@ ${isApp()?'':inst?'<button class="btn" data-a="install" style="width:100%;margin
 if(!$('#st').open)$('#st').showModal()}
 
 /* ---------- حركة متكررة ---------- */
-function openRec(id){const r=id?S.rec.find(x=>x.id===id):null,type=r?r.type:'out',u=type==='in'?'':(r?r.u:S.me),cats=catList().map(c=>c[0]).slice(0,8);
+function openRec(id){const r=id?S.rec.find(x=>x.id===id):null,type=r?r.type:'out',u=r?r.u:S.me,cats=catList().map(c=>c[0]).slice(0,8);
 $('#xd').innerHTML=`<form id="xf" class="f" data-kind="rec" data-id="${id||''}"><h3>${r?'تعديل حركة متكررة':'حركة متكررة (كل شهر)'}</h3>
 <div class="seg2"><button type="button" class="${type==='out'?'on out':''}" data-a="setType" data-id="out">🔴 صرف</button><button type="button" class="${type==='in'?'on in':''}" data-a="setType" data-id="in">🟢 دخل</button></div><input type="hidden" name="type" value="${type}">
 <input class="inp amt-in" name="amt" type="number" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required value="${r?r.amt:''}" aria-label="المبلغ">
 <input class="inp" name="cat" list="cats" placeholder="في إيه؟ (مثلاً: إيجار)" required autocomplete="off" value="${r?esc(r.cat||''):''}" aria-label="البند"><datalist id="cats">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
 <div class="chips">${cats.slice(0,6).map(c=>`<button type="button" class="chip" data-a="setCat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-<p id="shn" class="lab" style="margin:0"${type==='in'?'':' hidden'}>الدخل للاتنين، مش محتاج تحدد مين.</p><div id="ur"${type==='in'?' hidden':''}>${S.users.length>1?`<div class="lab" style="margin:2px 0 6px">مين صرف؟</div><div class="chips">${S.users.map(s=>`<button type="button" class="chip${s.id===u?' on':''}" data-a="setU" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>`:''}</div><input type="hidden" name="u" value="${u}">
+${S.users.length>1?`<div class="lab" style="margin:2px 0 0">مين؟</div><div class="chips">${S.users.map(s=>`<button type="button" class="chip${s.id===u?' on':''}" data-a="setU" data-id="${s.id}">${esc(s.name)}</button>`).join('')}</div>`:''}<input type="hidden" name="u" value="${u}">
 <label>بتتسجل في أنهي يوم من الشهر؟<input class="inp" name="day" type="number" min="1" max="31" inputmode="numeric" required value="${r?r.day:1}"></label>
 <input class="inp" name="note" placeholder="ملاحظة (اختياري)" autocomplete="off" value="${r?esc(r.note||''):''}" aria-label="ملاحظة">
 <p style="font-size:13px;color:var(--mute);margin:0">بتتسجل لوحدها كل شهر. لو اليوم ٣١ والشهر أقصر، بتتسجل آخر يوم فيه.</p>
@@ -207,10 +211,8 @@ mogo(id){S.mo+=(+id);keep();render()},
 allp(id){S.all=id==='1';keep();render()},
 pickUser(id){S.uf=S.uf===id?'all':id;keep();render()},
 clrUf(){S.uf='all';keep();render()},
-newTx(){openTx()},editTx(id){openTx(id)},closeX(){$('#xd').close()},
-setType(id){const f=$('#xf');f.elements.type.value=id;f.querySelectorAll('.seg2 button').forEach(b=>{b.className=b.dataset.id===id?'on '+id:''});
-const ur=$('#ur'),sh=$('#shn');if(ur)ur.hidden=id==='in';if(sh)sh.hidden=id!=='in';
-if(id==='in')f.elements.u.value='';else{const on=f.querySelector('.chip.on[data-a=setU]');A.setU(on?on.dataset.id:S.me)}},
+newTx(){if(!S.meSet&&(sync||S.users.length>1)){asked=true;askMe();return}openTx()},editTx(id){openTx(id)},closeX(){$('#xd').close()},
+setType(id){const f=$('#xf');f.elements.type.value=id;f.querySelectorAll('.seg2 button').forEach(b=>{b.className=b.dataset.id===id?'on '+id:''})},
 setU(id){const f=$('#xf');f.elements.u.value=id;f.querySelectorAll('.chip[data-a=setU]').forEach(b=>b.classList.toggle('on',b.dataset.id===id))},
 setCat(c){const f=$('#xf');f.elements.cat.value=c},
 delTx(id){const t=S.tx.find(x=>x.id===id);if(!t)return;S.tx=S.tx.filter(x=>x.id!==id);S.del[id]=Date.now();lastDel=t;save(1);$('#xd').close();render();snack('اتحذفت الحركة')},
@@ -234,7 +236,9 @@ async saveSync(){const c={p:$('#sp').value.trim(),k:$('#sk').value.trim(),c:($('
 if(!c.p||!c.k)return sdErr('اكتب معرّف المشروع (Project ID) والمفتاح (API Key)');
 if(c.c.length<24)c.c=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join('');
 sdErr('⏳ بيختبر الاتصال...',1);const err=await testCfg(c);if(err)return sdErr(err);
-localStorage.setItem('daftar-sync',JSON.stringify(c));sync=null;await syncInit();render();openSd()},
+localStorage.setItem('daftar-sync',JSON.stringify(c));
+if(!S.meSet&&S.users.length===1){S.meSet=true;if(S.users[0].name==='أنا'){const n=prompt('اسمك إيه؟ (هيظهر جنب حركاتك على الجهازين)','');if(n&&n.trim()){S.users[0].name=n.trim();S.users[0].m=Date.now()}}}
+save(1);sync=null;await syncInit();render();openSd()},
 applyLink(){let t=$('#sl').value.trim();const i=t.indexOf('join=');if(i>=0)t=t.slice(i+5);
 try{const c=unb64(t);if(!(c.p&&c.k&&c.c))throw 0;localStorage.setItem('daftar-sync',JSON.stringify(c));sync=null;sdErr('⏳ بيتصل...',1);syncInit().then(()=>{render();openSd()})}catch(e){sdErr('الرابط أو الكود غير صالح')}},
 closeSd(){$('#sd').close()},
@@ -244,14 +248,15 @@ import(){$('#imp').click()}};
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b.dataset.id)});
 document.addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target);
+if(e.target.id==='mef'){const n=f.get('n').trim();if(!n)return;let u=S.users.find(x=>x.name===n);if(!u){u=newUser(n);S.users.push(u)}S.me=u.id;S.meSet=true;save();$('#md').close();render();return}
 if(e.target.id==='xf'&&e.target.dataset.kind==='rec'){const amt=+f.get('amt'),day=Math.min(31,Math.max(1,parseInt(f.get('day'))||1));if(!(amt>0))return alert('اكتب مبلغاً أكبر من صفر');
-const id=e.target.dataset.id,rec={type:f.get('type'),u:f.get('type')==='in'?'':(f.get('u')||S.me),cat:f.get('cat').trim(),amt,note:f.get('note').trim(),day,m:Date.now()};
+const id=e.target.dataset.id,rec={type:f.get('type'),u:f.get('u'),cat:f.get('cat').trim(),amt,note:f.get('note').trim(),day,m:Date.now()};
 if(id)Object.assign(S.rec.find(x=>x.id===id),rec);else{const t=new Date();rec.id=uid();rec.from=day>=t.getDate()?mk(t):mk(t)+1;S.rec.push(rec)}
 save();$('#xd').close();render();openSt('rec');return}
-if(e.target.id==='xf'){const amt=+f.get('amt');if(!(amt>0))return alert('اكتب مبلغاً أكبر من صفر');const d=fromYmd(f.get('d')||ymd(Date.now())),id=e.target.dataset.id;
-const rec={type:f.get('type'),u:f.get('type')==='in'?'':(f.get('u')||S.me),cat:f.get('cat').trim(),amt,note:f.get('note').trim(),d,m:Date.now()};
-if(id)Object.assign(S.tx.find(x=>x.id===id),rec);else S.tx.push({id:uid(),...rec});
-S.lt=rec.type;if(!S.all)S.mo=mk(d);save();$('#xd').close();render();return}
+if(e.target.id==='xf'){const amt=+f.get('amt');if(!(amt>0))return alert('اكتب مبلغاً أكبر من صفر');const d=fromYmd(f.get('d')||ymd(Date.now())),id=e.target.dataset.id;let rep=0;
+const rec={type:f.get('type'),u:f.get('u'),cat:f.get('cat').trim(),amt,note:f.get('note').trim(),d,m:Date.now()};
+if(id)Object.assign(S.tx.find(x=>x.id===id),rec);else{S.tx.push({id:uid(),...rec});if(f.get('rep')){const dd=new Date(d).getDate(),t=new Date(),cand=dd>t.getDate()?mk(t):mk(t)+1;S.rec.push({id:uid(),type:rec.type,u:rec.u,cat:rec.cat,amt,note:rec.note,day:dd,from:Math.max(mk(d)+1,cand),m:Date.now()});rep=dd}}
+S.lt=rec.type;if(!S.all)S.mo=mk(d);save();$('#xd').close();render();if(rep)cloudMsg('🔁 هتتسجل لوحدها كل شهر يوم '+num(rep));return}
 if(e.target.id==='nuf'){const n=f.get('n').trim();if(!n)return;if(S.users.some(u=>u.name===n))return alert('هذا الاسم موجود بالفعل');S.users.push(newUser(n));save();render();openSt()}});
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;renderList()}});
 document.addEventListener('change',e=>{const t=e.target;
@@ -320,6 +325,7 @@ else{$('#sd').innerHTML=`${head}<p style="margin:0 0 6px;font-size:14px;line-hei
 if(!$('#sd').open)$('#sd').showModal()}
 window.addEventListener('hashchange',()=>{if(joinFromHash()){sync=null;syncInit().then(render)}});
 const joined=joinFromHash();
+$('#md').addEventListener('cancel',e=>{if(!S.meSet)e.preventDefault()});
 setInterval(()=>{if(genRec()){save(1);render()}if(sync&&!document.hidden&&!busy&&navigator.onLine){if((S.u||0)>(S.cu||0))push();else pull(false).then(m=>m&&push()).catch(()=>{})}},30000);
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();inst=e});
 window.addEventListener('appinstalled',()=>{inst=null});
